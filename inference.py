@@ -57,10 +57,12 @@ def main():
     model.eval()
 
     img = Image.open(args.img_path).convert('L').resize((96, 96))  # 255 space  
-    print(img.size)
     img_ = transforms.ToTensor()(img).unsqueeze(0).cuda() # 0,1
     ab_pred = model(img_)
-    save_colored_sample(img_, ab_pred )
+    if args.objective == 'reconstruction':
+        save_colored_sample(img_, ab_pred )
+    elif args.objective == 'classification':
+        pass
         
 if __name__ == "__main__":
     main()

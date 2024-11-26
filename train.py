@@ -25,8 +25,8 @@ def encode_ab(ab, ab_bins):  # ab: Batch x 2 x 96 x 96
     a_idx = torch.bucketize(a, a_bins) - 1  # Batch x 96 x 96
     b_idx = torch.bucketize(b, b_bins) - 1  # Batch x 96 x 96
 
-    a_idx = torch.clamp(a_idx, min=0)  
-    b_idx = torch.clamp(b_idx, min=0) 
+    a_idx = torch.clamp(a_idx, min=0, max=360)  
+    b_idx = torch.clamp(b_idx, min=0, max=360) 
 
     ab_target = b_idx * (len(a_bins) - 1) + a_idx  # Batch x 96 x 96
 
@@ -37,7 +37,7 @@ def create_ab_bins(grid_size=12):
     a_bins = torch.arange(-110, 110 + grid_size, grid_size) 
     b_bins = torch.arange(-110, 110 + grid_size, grid_size) 
     
-    return a_bins, b_bins
+    return a_bins.cuda(), b_bins.cuda()
 
 
 def asign_centroid_color_batch(bins_pred, ab_bins, grid_size=12):
@@ -58,7 +58,8 @@ def asign_centroid_color_batch(bins_pred, ab_bins, grid_size=12):
 
 
 
-def save_colored_sample(L, ab, ab_pred, epoch, classification=False):
+def save_colored_sample(args, L, ab, ab_pred, epoch, classification=False):
+    
     L_single = L[0][0].cpu().numpy() * 100  # 1 x 96 x 96
     ab_pred_single = ab_pred[0].cpu().numpy() * 128  # 2 x 96 x 96
     ab_single = ab[0].cpu().numpy() * 128  # 2 x 96 x 96
@@ -117,7 +118,7 @@ def train_reconstruction_objective(args, model, train_loader, test_loader, epoch
             for img, _ in test_loader:
                 L, ab = (img[:, 0:1, :, :] / 100).cuda(), (img[:, 1:, :, :] / 128).cuda()
                 ab_pred = model(L)
-                save_colored_sample(L, ab, ab_pred, epoch)
+                save_colored_sample(args, L, ab, ab_pred, epoch)
                 break  
         
         print(f"Epoch {epoch}, Loss: {epoch_loss / len(train_loader)}")
@@ -137,11 +138,9 @@ def train_classification_objective(args, model, train_loader, test_loader, epoch
         for img, _ in tqdm(train_loader):
             L, ab = (img[:, 0:1, :, :] / 100).cuda(), (img[:, 1:, :, :] / 128).cuda() # L, ab : batch x 3 x 96 x 96
             ab_target = encode_ab(ab, ab_bins) # batch x W x H
-            # print(ab_target)
             optimizer.zero_grad()
             ab_logits = model(L) # batch x 361 x W x H
-            loss = F.cross_entropy(ab_logits, ab_target, reduction="None")
-            loss_mean = loss.mean()
+            loss = F.cross_entropy(ab_logits, ab_target)
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
@@ -149,7 +148,7 @@ def train_classification_objective(args, model, train_loader, test_loader, epoch
         
         if not best_loss or epoch_loss < best_loss:
             best_loss = epoch_loss
-            torch.save(model.state_dict(), os.path.join(args.outdir, "best_model.pth"))
+            torch.save(model.state_dict(), os.path.join(args.outdir,"best_model.pth"))
         
         if epoch % 1 != 0:
             continue
@@ -163,7 +162,7 @@ def train_classification_objective(args, model, train_loader, test_loader, epoch
                 # print(bin_preds)
                 
                 ab_preds = asign_centroid_color_batch(bin_preds, ab_bins)
-                save_colored_sample(L, ab, ab_preds, epoch, True)
+                save_colored_sample(args, L, ab, ab_preds, epoch, True)
                 break  
         
         print(f"Epoch {epoch}, Loss: {epoch_loss / len(train_loader)}")
@@ -173,18 +172,19 @@ def main():
     parser = argparse.ArgumentParser(description="Train Colorization Model")
     
     parser.add_argument('--epochs', type=int, default=100, help='Số epoch để huấn luyện')
-    parser.add_argument('--checkpoint', type=str, default='samples/best_model_recontruction.pth')
+    parser.add_argument('--checkpoint', type=str, default=None)
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate cho Adam')
     parser.add_argument('--step_size', type=int, default=10, help='Step size cho scheduler')
     parser.add_argument('--gamma', type=float, default=0.1, help='Gamma cho scheduler')
     parser.add_argument('--colorizer', type=str, default="simple_CNN")
-    parser.add_argument('--batch_size', type=int, default=512)
+    parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--objective', type=str, default='recontruction')
     parser.add_argument('--outdir', type=str)
     args = parser.parse_args()
 
+    os.makedirs(args.outdir, exist_ok=True)
 
-    model = get_architecture("simple_CNN")
+    model = get_architecture("simple_CNN", "classification")
     if args.checkpoint:
         model.load_state_dict(torch.load(args.checkpoint))
     
@@ -193,10 +193,10 @@ def main():
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
     
     if args.objective == "recontruction":
-        train_reconstruction_objective(model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
+        train_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
 
     elif args.objective == "classification":
-        train_classification_objective(model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
+        train_classification_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
     
     
 if __name__ == "__main__":

@@ -70,7 +70,7 @@ class ColorizationModel(nn.Module):
             self.decoder.add_module('tanh', nn.Tanh())
 
         elif self.objective == "classificaiton":
-            self.deocder.add_module('relu', nn.ReLU())
+            self.decoder.add_module('relu', nn.ReLU())
     def forward(self, x):
         x = self.encoder(x)
         x = self.middle(x)
