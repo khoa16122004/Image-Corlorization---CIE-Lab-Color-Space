@@ -16,10 +16,16 @@ def get_architecture(architecture: str, objective: str="recontruction"):
         model = ColorizationModel(objective)
     elif architecture == "upscale":
         model = Upscale()
+    elif architecture == "wgan":
+        if objective == "reconstruction":
+            G = Generator(feature_maps=96, output_channels=2)
+            D = Discriminator(96, 96, input_channels=2)
+        else:
+            G = Generator(feature_maps=96, output_channels=361)
+            D = Discriminator(96, 96, input_channels=1)
+        return G, D
     
     return model
-
-
 
 class ColorizationModel(nn.Module):
     def __init__(self, objective="reconstruction"):
@@ -97,7 +103,6 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-
 class UNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, features=[64, 128, 256, 512]):
         super(UNet, self).__init__()
@@ -166,36 +171,6 @@ class UNet(nn.Module):
         x = self.final_conv(x)
 
         return x
-
-
-
-class Discriminator(nn.Module):
-    def __init__(self, H=128, W=128):
-        super(Discriminator, self).__init__()
-        self.model = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),  # (B, 3, H, W) -> (B, 64, H/2, W/2)
-            nn.LeakyReLU(0.2, inplace=True),
-
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), # -> (B, 128, H/4, W/4)
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2, inplace=True),
-
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1), # -> (B, 256, H/8, W/8)
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-
-            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1), # -> (B, 512, H/16, W/16)
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-
-            nn.Flatten(),  # Flatten the feature maps
-            nn.Linear(512 * (H // 16) * (W // 16), 1), # Linear layer
-            nn.Sigmoid()  # Output a value between 0 and 1
-        )
-
-    def forward(self, x):
-        return self.model(x)
-    
     
 class UNetDecoder(nn.Module):
     def __init__(self, in_channels=64, out_channels=3, latent_dim=128):
@@ -231,12 +206,49 @@ class UNetDecoder(nn.Module):
         x = self.final_conv(x)
 
         return x
+    
+class Generator(nn.Module):
+    def __init__(self, input_channels=1, output_channels=361, feature_maps=256):
+        super(Generator, self).__init__()
+        self.input_channels = input_channels 
+        self.output_channels = output_channels
+        self.feature_maps = feature_maps
+        
+        self.input_layer = nn.Sequential(
+            nn.Conv2d(input_channels, feature_maps, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(feature_maps),
+            nn.ReLU(True)
+        )
 
+        self.generator = nn.Sequential(
+            nn.Conv2d(feature_maps, feature_maps * 2, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 2),
+            nn.ReLU(True),
+            
+            nn.Conv2d(feature_maps * 2, feature_maps * 4, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 4),
+            nn.ReLU(True),
+            
+            nn.ConvTranspose2d(feature_maps * 4, feature_maps * 2, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 2),
+            nn.ReLU(True),
+            
+            nn.ConvTranspose2d(feature_maps * 2, feature_maps, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps),
+            nn.ReLU(True),
+            
+            nn.Conv2d(feature_maps, output_channels, kernel_size=3, stride=1, padding=1)
+        )
+        self.output = nn.Tanh()
 
+    def forward(self, x):
+        x = self.input_layer(x)
+        x = self.generator(x)
+        return self.output(x)
 
 
 class Discriminator(nn.Module):
-    def __init__(self, H=96, W=96, input_channels = 1):
+    def __init__(self, H=128, W=128, input_channels = 1):
         super(Discriminator, self).__init__()
         self.input_channels = input_channels
         self.discriminator = nn.Sequential(
@@ -263,6 +275,7 @@ class Discriminator(nn.Module):
         x = self.discriminator(x)
         x = x.view(-1, 1, 2, 2)
         return x
+
 
 
 if __name__ == "__main__":
