@@ -365,7 +365,7 @@ def main():
     parser.add_argument('--gamma', type=float, default=0.1, help='Gamma cho scheduler')
     parser.add_argument('--colorizer', type=str, default="simple_CNN")
     parser.add_argument('--batch_size', type=int, default=256)
-    parser.add_argument('--objective', type=str, default='recontruction')
+    parser.add_argument('--objective', type=str, default='reconstruction')
     parser.add_argument('--arch', type=str, default='simple_CNN')
     parser.add_argument('--outdir', type=str)
     parser.add_argument('--dataset', type=str, default='stl10')
@@ -391,7 +391,7 @@ def main():
     if args.arch == "wgan":
         train_wgan_objective(args, generator, discriminator, train_loader, test_loader)
     else:
-        if args.objective == "recontruction":
+        if args.objective == "reconstruction":
                 train_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
 
         elif args.objective == "classification":

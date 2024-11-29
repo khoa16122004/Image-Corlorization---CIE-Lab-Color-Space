@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 
-def get_architecture(architecture: str, objective: str="recontruction"):
+def get_architecture(architecture: str, objective: str="reconstruction"):
     if architecture == "unet":
         model = UNet()
         
