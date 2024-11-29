@@ -209,8 +209,6 @@ def train_classification_objective(args, model, train_loader, test_loader, epoch
         print(f"Epoch {epoch}, Loss: {epoch_loss / len(train_loader)}")
         scheduler.step()
 
-def train_classification_objective(args, generator, discriminator, train_loader, test_loader, epochs=20, lr=1e-3, step_size=10, gamma=0.1):
-    pass
 
          
 def main():
