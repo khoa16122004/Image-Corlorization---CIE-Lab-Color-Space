@@ -14,7 +14,9 @@ def get_architecture(architecture: str, objective: str="recontruction"):
         model = Discriminator()
     elif architecture == "simple_CNN":
         model = ColorizationModel(objective)
-
+    elif architecture == "upscale":
+        model = Upscale()
+    
     return model
 
 
@@ -28,6 +30,9 @@ class ColorizationModel(nn.Module):
             
         elif self.objective == "classification":
             self.Q = 361
+            
+        elif self.objective == "upscale":
+            self.Q = 3
 
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1),
@@ -227,6 +232,37 @@ class UNetDecoder(nn.Module):
 
         return x
 
+
+
+
+class Discriminator(nn.Module):
+    def __init__(self, H=96, W=96, input_channels = 1):
+        super(Discriminator, self).__init__()
+        self.input_channels = input_channels
+        self.discriminator = nn.Sequential(
+            nn.Conv2d(self.input_channels, 64, kernel_size=4, stride=2, padding=1),  # (B, 1, H, W) -> (B, 64, H/2, W/2)
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), # -> (B, 128, H/4, W/4)
+             nn.InstanceNorm2d(128,  affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1), # -> (B, 256, H/8, W/8)
+            nn.InstanceNorm2d(256,  affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1), # -> (B, 512, H/16, W/16)
+            nn.InstanceNorm2d(512,  affine=True),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Flatten(),  
+            nn.Linear(512 * (H // 16) * (W // 16), 4), 
+        )
+
+    def forward(self, x):
+        x = self.discriminator(x)
+        x = x.view(-1, 1, 2, 2)
+        return x
 
 
 if __name__ == "__main__":

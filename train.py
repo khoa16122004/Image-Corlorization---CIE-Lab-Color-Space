@@ -13,6 +13,7 @@ import argparse
 from dataset import get_dataset
 from arch import get_architecture
 import torch.nn.functional as F
+from torchvision.transforms.functional import rgb_to_grayscale
 
 
 
@@ -57,7 +58,6 @@ def asign_centroid_color_batch(bins_pred, ab_bins, grid_size=12):
     return ab # not normalize
 
 
-
 def save_colored_sample(args, L, ab, ab_pred, epoch, classification=False):
     
     L_single = L[0][0].cpu().numpy() * 100  # 1 x 96 x 96
@@ -84,6 +84,47 @@ def save_colored_sample(args, L, ab, ab_pred, epoch, classification=False):
 
     imsave(os.path.join(args.outdir, f"combined_epoch{epoch}.png"), combined)
     # groutruth, scale, rgb
+
+
+def train_RGB_reconstruction_objective(args, model, train_loader, test_loader, epochs=20, lr=1e-3, step_size=10, gamma=0.1):
+    model = model.cuda()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
+    criterion = nn.MSELoss()
+
+    best_loss = None
+    for epoch in range(epochs): 
+        model.train()
+        epoch_loss = 0.0
+        for img, _ in tqdm(train_loader): # img: batch x 3 x w x h
+            img = img.cuda()
+            img_gray = rgb_to_grayscale(img * 255) / 255
+            img_pred = model(img_gray)
+            loss = criterion(img_pred, img)
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item()
+        
+        if not best_loss or epoch_loss < best_loss:
+            best_loss = epoch_loss
+            torch.save(model.state_dict(), os.path.join(args.outdir, 'best_model.pth'))
+        
+        # if epoch % 5 != 0:
+        #     continue
+        with torch.no_grad():
+            model.eval()
+            for img, _ in test_loader:
+                img = img.cuda()
+                img_gray = rgb_to_grayscale(img * 255) / 255
+                img_pred = model(img_gray)
+                save_image(img_gray, os.path.join(args.outdir, f"gray.png"))
+                save_image(img_pred, os.path.join(args.outdir, f"colorize.png"))
+                break  
+        
+        print(f"Epoch {epoch}, Loss: {epoch_loss / len(train_loader)}")
+        scheduler.step()
+
+
 
 def train_reconstruction_objective(args, model, train_loader, test_loader, epochs=20, lr=1e-3, step_size=10, gamma=0.1):
     model = model.cuda()
@@ -167,7 +208,11 @@ def train_classification_objective(args, model, train_loader, test_loader, epoch
         
         print(f"Epoch {epoch}, Loss: {epoch_loss / len(train_loader)}")
         scheduler.step()
-            
+
+def train_classification_objective(args, generator, discriminator, train_loader, test_loader, epochs=20, lr=1e-3, step_size=10, gamma=0.1):
+    pass
+
+         
 def main():
     parser = argparse.ArgumentParser(description="Train Colorization Model")
     
@@ -179,16 +224,19 @@ def main():
     parser.add_argument('--colorizer', type=str, default="simple_CNN")
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--objective', type=str, default='recontruction')
+    parser.add_argument('--arch', type=str, default='simple_CNN')
     parser.add_argument('--outdir', type=str)
+    parser.add_argument('--dataset', type=str, default='stl10')
     args = parser.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
 
-    model = get_architecture("simple_CNN", "classification")
+    model = get_architecture(args.arch, args.objective)
+    
     if args.checkpoint:
         model.load_state_dict(torch.load(args.checkpoint))
     
-    train_dataset, test_dataset = get_dataset("stl10")
+    train_dataset, test_dataset = get_dataset(args.dataset)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
     
@@ -198,6 +246,9 @@ def main():
     elif args.objective == "classification":
         train_classification_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
     
+    elif args.objective == "upscale":
+        train_RGB_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
+
     
 if __name__ == "__main__":
     main()
