@@ -18,7 +18,7 @@ def get_architecture(architecture: str, objective: str="reconstruction"):
         model = Upscale()
     elif architecture == "wgan":
         if objective == "reconstruction":
-            G = Generator(feature_maps=96, output_channels=2)
+            G = ColorizationModel(objective)
             D = Discriminator(96, 96, input_channels=2)
         else:
             G = Generator(feature_maps=96, output_channels=361)

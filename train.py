@@ -64,13 +64,18 @@ def save_colored_sample(args, L, ab, ab_pred, epoch, classification=False):
     ab_pred_single = ab_pred[0].cpu().numpy() * 128  # 2 x 96 x 96
     ab_single = ab[0].cpu().numpy() * 128  # 2 x 96 x 96
 
+    ab_pred_single = np.clip(ab_pred_single, -110, 110)
+    ab_single = np.clip(ab_single, -110, 110)
+
     if classification == True:
         ab_pred_single /= 128
         ab_single / 128
         
     lab_gt = np.array([L_single, ab_single[0], ab_single[1]])  # 3 x 96 x 96
     lab_pred = np.array([L_single, ab_pred_single[0], ab_pred_single[1]])  # 3 x 96 x 96
+    
     gray_scale = np.array([L_single, np.zeros_like(ab_pred_single[0]),  np.zeros_like(ab_pred_single[1])])  # 3 x 96 x 96
+    
     
     rgb_gt = color.lab2rgb(np.transpose(lab_gt, (1, 2, 0)))  
     rgb_pred = color.lab2rgb(np.transpose(lab_pred, (1, 2, 0)))
@@ -217,7 +222,7 @@ def train_wgan_objective(args, generator, discriminator, train_loader, test_load
     best_g_loss, best_d_loss = None, None
     ab_bins = create_ab_bins()
 
-    def train_step (batch, ab_bins):
+    def train_step(batch, ab_bins):
         # TRAIN DISCRIMINATOR
         for _ in range(args.n_critic):  
             img, _ = batch
@@ -262,7 +267,7 @@ def train_wgan_objective(args, generator, discriminator, train_loader, test_load
             optimizer_D.step()
     
             optimizer_G.zero_grad()
-
+            break
         # TRAIN GENERATOR
         fake_images_probs = generator(L)
         if args.objective == "classification":
@@ -281,11 +286,11 @@ def train_wgan_objective(args, generator, discriminator, train_loader, test_load
         generator.train()
         discriminator.train()
         total_g_loss, total_d_loss = 0, 0
-
-        for batch in train_loader:
+        for batch in tqdm(train_loader):
             g_loss, d_loss = train_step(batch, ab_bins)
             total_g_loss += g_loss
             total_d_loss += d_loss
+            break
         
         avg_g_loss = total_g_loss / len(train_loader)
         avg_d_loss = total_d_loss / len(train_loader)
@@ -364,7 +369,7 @@ def main():
     parser.add_argument('--step_size', type=int, default=10, help='Step size cho scheduler')
     parser.add_argument('--gamma', type=float, default=0.1, help='Gamma cho scheduler')
     parser.add_argument('--colorizer', type=str, default="simple_CNN")
-    parser.add_argument('--batch_size', type=int, default=256)
+    parser.add_argument('--batch_size', type=int, default=56)
     parser.add_argument('--objective', type=str, default='reconstruction')
     parser.add_argument('--arch', type=str, default='simple_CNN')
     parser.add_argument('--outdir', type=str)
@@ -374,6 +379,7 @@ def main():
     os.makedirs(args.outdir, exist_ok=True)
     if args.arch == "wgan":
         generator, discriminator = get_architecture(args.arch, args.objective)
+        generator.load_state_dict(torch.load("trained/best_model_recontruction.pth"))
     else:
         model = get_architecture(args.arch, args.objective)
     
@@ -388,17 +394,18 @@ def main():
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
     
-    if args.arch == "wgan":
+    if args.objective == "reconstruction" and args.arch == "wgan":
+        print("WGAN")
         train_wgan_objective(args, generator, discriminator, train_loader, test_loader)
-    else:
-        if args.objective == "reconstruction":
-                train_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
+    
+    elif args.objective == "reconstruction":
+            train_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
 
-        elif args.objective == "classification":
-            train_classification_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
-        
-        elif args.objective == "upscale":
-            train_RGB_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
+    elif args.objective == "classification":
+        train_classification_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
+    
+    elif args.objective == "upscale":
+        train_RGB_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
 
     
 if __name__ == "__main__":
