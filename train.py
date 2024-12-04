@@ -64,12 +64,14 @@ def save_colored_sample(args, L, ab, ab_pred, epoch, classification=False):
     ab_pred_single = ab_pred[0].cpu().numpy() * 128  # 2 x 96 x 96
     ab_single = ab[0].cpu().numpy() * 128  # 2 x 96 x 96
 
-    ab_pred_single = np.clip(ab_pred_single, -110, 110)
-    ab_single = np.clip(ab_single, -110, 110)
+
 
     if classification == True:
         ab_pred_single /= 128
         ab_single / 128
+        
+    ab_pred_single = np.clip(ab_pred_single, -110, 110)
+    ab_single = np.clip(ab_single, -110, 110)   
         
     lab_gt = np.array([L_single, ab_single[0], ab_single[1]])  # 3 x 96 x 96
     lab_pred = np.array([L_single, ab_pred_single[0], ab_pred_single[1]])  # 3 x 96 x 96
@@ -290,7 +292,7 @@ def train_wgan_objective(args, generator, discriminator, train_loader, test_load
             g_loss, d_loss = train_step(batch, ab_bins)
             total_g_loss += g_loss
             total_d_loss += d_loss
-            break
+            break   
         
         avg_g_loss = total_g_loss / len(train_loader)
         avg_d_loss = total_d_loss / len(train_loader)
@@ -402,6 +404,7 @@ def main():
             train_reconstruction_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
 
     elif args.objective == "classification":
+        model.load_state_dict(torch.load("trained/best_model_recontruction.pth"))
         train_classification_objective(args, model, train_loader, test_loader, epochs=args.epochs, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
     
     elif args.objective == "upscale":
