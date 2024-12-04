@@ -73,11 +73,9 @@ def asign_nearly_color_batch(ab_logits, ab_bins, T=0.1, k=5, grid_size=12):
     a_coords = (topk_indices % (a_bins.shape[0] - 1)).float()
     b_coords = (topk_indices // (b_bins.shape[0] - 1)).float()
     
-    # Lấy trung bình có trọng số dựa trên xác suất top-k
     a_pred = torch.sum(topk_probs * (a_bins[a_coords.long()] + grid_size / 2), dim=1)
     b_pred = torch.sum(topk_probs * (b_bins[b_coords.long()] + grid_size / 2), dim=1)
     
-    # Trả về kết quả với dạng [a_pred, b_pred]
     return torch.stack([a_pred, b_pred], dim=1)
 
 
