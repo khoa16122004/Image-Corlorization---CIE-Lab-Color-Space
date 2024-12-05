@@ -124,6 +124,7 @@ def train_RGB_reconstruction_objective(args, model, train_loader, test_loader, e
                 img = img.cuda()
                 img_gray = rgb_to_grayscale(img * 255) / 255
                 img_pred = model(img_gray)
+                save_image(img, os.path.join(args.outdir, 'best_image.png'))
                 save_image(img_gray, os.path.join(args.outdir, f"gray.png"))
                 save_image(img_pred, os.path.join(args.outdir, f"colorize.png"))
                 break  
@@ -371,7 +372,7 @@ def main():
     parser.add_argument('--step_size', type=int, default=10, help='Step size cho scheduler')
     parser.add_argument('--gamma', type=float, default=0.1, help='Gamma cho scheduler')
     parser.add_argument('--colorizer', type=str, default="simple_CNN")
-    parser.add_argument('--batch_size', type=int, default=56)
+    parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--objective', type=str, default='reconstruction')
     parser.add_argument('--arch', type=str, default='simple_CNN')
     parser.add_argument('--outdir', type=str)
@@ -397,7 +398,6 @@ def main():
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
     
     if args.objective == "reconstruction" and args.arch == "wgan":
-        print("WGAN")
         train_wgan_objective(args, generator, discriminator, train_loader, test_loader)
     
     elif args.objective == "reconstruction":

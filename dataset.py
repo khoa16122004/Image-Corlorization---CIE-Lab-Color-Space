@@ -18,16 +18,16 @@ def simple(img):
 def get_dataset(dataset_name: str):
     if dataset_name == "stl10":
         transform=transforms.Compose([transforms.Lambda(rgb2lab)])
-        train_dataset = torchvision.datasets.STL10(root=".Dataset", split='train', 
+        train_dataset = torchvision.datasets.STL10(root=".Dataset", split='unlabeled', 
                                                   download=True, transform=transform)
-        test_dataset = torchvision.datasets.STL10(root=".Dataset", split='unlabeled', 
+        test_dataset = torchvision.datasets.STL10(root=".Dataset", split='test', 
                                                   download=True, transform=transform)
 
     if dataset_name == 'stl10_simple':
         transform=transforms.Compose([transforms.Lambda(simple)])
-        train_dataset = torchvision.datasets.STL10(root=".Dataset", split='train', 
+        train_dataset = torchvision.datasets.STL10(root=".Dataset", split='unlabeled', 
                                                   download=True, transform=transform)
-        test_dataset = torchvision.datasets.STL10(root=".Dataset", split='unlabeled', 
+        test_dataset = torchvision.datasets.STL10(root=".Dataset", split='test', 
                                                   download=True, transform=transform)
     return train_dataset, test_dataset 
     

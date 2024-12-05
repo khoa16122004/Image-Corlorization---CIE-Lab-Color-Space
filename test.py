@@ -150,13 +150,12 @@ def test_classification_with_metrics(args, model, test_loader):
 def main():
     parser = argparse.ArgumentParser(description="Train Colorization Model")
     
-    parser.add_argument('--epochs', type=int, default=100, help='Số epoch để huấn luyện')
     parser.add_argument('--checkpoint', type=str, default=None)
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate cho Adam')
     parser.add_argument('--step_size', type=int, default=10, help='Step size cho scheduler')
     parser.add_argument('--gamma', type=float, default=0.1, help='Gamma cho scheduler')
     parser.add_argument('--colorizer', type=str, default="simple_CNN")
-    parser.add_argument('--batch_size', type=int, default=512)
+    parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--objective', type=str, default='reconstruction')
     parser.add_argument('--arch', type=str, default='simple_CNN')
     parser.add_argument('--outdir', type=str)

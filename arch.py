@@ -82,6 +82,10 @@ class ColorizationModel(nn.Module):
 
         elif self.objective == "classificaiton":
             self.decoder.add_module('relu', nn.ReLU())
+            
+        elif self.objective == "upscale":
+            self.decoder.add_module('sigmoid', nn.Sigmoid())
+            
     def forward(self, x):
         x = self.encoder(x)
         x = self.middle(x)
@@ -153,21 +157,18 @@ class UNet(nn.Module):
 
 
     def forward(self, latent):
-        # Chuyển latent vector thành tensor 3D có kích thước phù hợp
         x = self.fc(latent)
-        x = x.view(-1, 64, 8, 8)  # Chuyển thành tensor có shape (batch_size, 64, 8, 8)
+        x = x.view(-1, 64, 8, 8)  
 
         # Các lớp convolution
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
 
-        # Upsample (tăng kích thước ảnh)
-        x = self.upconv1(x)  # Tăng lên 16x16
-        x = self.upconv2(x)  # Tăng lên 32x32
-        x = self.upconv3(x)  # Tăng lên 64x64
-        x = self.upconv4(x)  # Tăng lên 128x128
+        x = self.upconv1(x)  
+        x = self.upconv2(x)  
+        x = self.upconv3(x)  
+        x = self.upconv4(x)  
 
-        # Lớp cuối cùng để xuất ra hình ảnh với số kênh mong muốn
         x = self.final_conv(x)
 
         return x
