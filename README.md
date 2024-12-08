@@ -5,6 +5,21 @@ This project was inspired by this paper: [Colorful Image Colorization](https://a
 
 ![alt text](figure/result.png)
 
+# Usage
+- For inference with specific image path
+    ```bash    
+    python inference.py --checkpoint <checkpoint_path> --outdir <output_directory> --dataset <dataset_name>
+    ```
+- For training the model
+    ```bash
+    python train.py --epochs <num_epochs> --checkpoint <checkpoint_path> --checkpoint-G <checkpoint_generator_path> --checkpoint-D <checkpoint_discriminator_path> --lambda_gp <lambda_gp> --n_critic <n_critic> --lr <lr> --step_size <step_size> --gamma <gamma> --colorizer <colorizer_type> --batch_size <batch_size> --objective <objective_function> --arch <model_architecture> --outdir <output_directory> --dataset <dataset_name>
+    ```
+
+- For testing the model
+    ```bash
+    python test.py --checkpoint <checkpoint_path> --outdir <output_directory> --dataset <dataset_name>
+    ```
+
 # Image Reconstruction Approach
 - Reason why using CIE-Lab color space
 ![alt text](figure/limit_rgb.png)
