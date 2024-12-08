@@ -83,7 +83,7 @@ def asign_nearly_color_batch(ab_logits, ab_bins, T=0.1, k=5, grid_size=12):
 def main():
     parser = argparse.ArgumentParser(description="Train Colorization Model")
     
-    parser.add_argument('--checkpoint', type=str, default='samples/best_model_recontruction.pth')
+    parser.add_argument('--checkpoint', type=str, default=None)
     parser.add_argument('--colorizer', type=str, default="simple_CNN")
     parser.add_argument('--objective', type=str, default='reconstruction')
     parser.add_argument('--img_path', type=str)

@@ -2,3 +2,8 @@ samples/*
 1603.08511v5.pdf
 .Dataset/*
 notebook/*
+train_*
+test_*
+reci
+*.zip
+trea
