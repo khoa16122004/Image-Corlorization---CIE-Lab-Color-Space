@@ -270,7 +270,7 @@ def train_wgan_objective(args, generator, discriminator, train_loader, test_load
             optimizer_D.step()
     
             optimizer_G.zero_grad()
-            break
+            # break
         # TRAIN GENERATOR
         fake_images_probs = generator(L)
         if args.objective == "classification":
